@@ -67,7 +67,6 @@ def solver_positions(
     print(f"Objective function value : {value(prob.objective)}")
     if prob.status == 1:
         result = {}
-        print("\n--- Seating Chart ---")
         for t in tables:
             seated_people = [p for p in people if value(x[p, t]) == 1.0]
 
@@ -75,7 +74,5 @@ def solver_positions(
             for pair in relations:
                 if value(y[pair, t]) == 1.0:
                     table_score += relations[pair]
-
-            print(f"Table {t} (Score: {table_score}): {seated_people}")
-            result[t] = seated_people
+            result[t] = (table_score, seated_people)
         return result
