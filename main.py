@@ -2,7 +2,14 @@ from solveur import solver_positions
 
 
 def main():
-    people = ["A", "B", "C", "D", "E", "F", "G"]
+    people = [
+        {"name": "A", "group": "work"},
+        {"name": "B", "group": "family"},
+        {"name": "C", "group": "work"},
+        {"name": "D", "group": "work"},
+        {"name": "E", "group": "family"},
+        {"name": "F", "group": "family"},
+    ]
     relations = {
         ("A", "B"): 3.0,
         ("A", "C"): -2.0,

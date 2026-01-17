@@ -1,25 +1,35 @@
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpStatus, value, LpBinary
 from pulp import PULP_CBC_CMD
-import itertools
 import math
 
 
 def solver_positions(
-    people: list[str], relations: dict[tuple[str, str], float], num_per_tables: int
+    people: list[dict[str, str]],
+    relations: dict[tuple[str, str], float],
+    num_per_tables: int,
 ):
+    people_name = [p["name"] for p in people]
+
     # keys are sorted
     relations_clean: dict[tuple[str, str], float] = {
         tuple(sorted(k)): v for k, v in relations.items()
     }  # type: ignore
-    all_combinations = set(itertools.combinations(people, 2))
-    for pair in all_combinations:
-        sorted_pair = tuple(sorted(pair))
-        if sorted_pair not in relations_clean.keys():
-            relations_clean[pair] = 0.0  # missing keys are added with 0.0 value
+
+    # People from the same group are linked together
+    for i in range(len(people)):
+        for j in range(i + 1, len(people)):
+            pair: tuple[str, str] = tuple(
+                sorted((people[i]["name"], people[j]["name"]))
+            )  # type: ignore
+            if pair not in relations_clean.keys():
+                if people[i]["group"] == people[j]["group"]:
+                    relations_clean[pair] = 3.0
+                else:
+                    relations_clean[pair] = 0.0
 
     relations = relations_clean
 
-    num_tables = math.ceil(len(people) / num_per_tables)  # number of tables needed
+    num_tables = math.ceil(len(people_name) / num_per_tables)  # number of tables needed
     tables = list(range(num_tables))
 
     # Problem type
@@ -28,7 +38,7 @@ def solver_positions(
     # Variables
     ValueBytTable = LpVariable.dicts("Table", [n for n in tables])
     x = LpVariable.dicts(
-        "Position", [(p, t) for p in people for t in tables], 0, 1, LpBinary
+        "Position", [(p, t) for p in people_name for t in tables], 0, 1, LpBinary
     )
     y = LpVariable.dicts(
         "AreAtSameTable",
@@ -49,14 +59,14 @@ def solver_positions(
             prob += x[p[0], n] + x[p[1], n] - 1 <= y[p, n]
 
     for t in tables:
-        prob += lpSum([x[p, t] for p in people]) <= num_per_tables
+        prob += lpSum([x[p, t] for p in people_name]) <= num_per_tables
 
     for n in tables:
         prob += ValueBytTable[n] == lpSum(
             relations[p] * y[p, n] for p in relations.keys()
         )
 
-    for p in people:
+    for p in people_name:
         prob += lpSum(x[p, n] for n in tables) == 1
 
     # Solving problem
@@ -68,7 +78,7 @@ def solver_positions(
     if prob.status == 1:
         result = {}
         for t in tables:
-            seated_people = [p for p in people if value(x[p, t]) == 1.0]
+            seated_people = [p for p in people_name if value(x[p, t]) == 1.0]
 
             table_score = 0
             for pair in relations:
